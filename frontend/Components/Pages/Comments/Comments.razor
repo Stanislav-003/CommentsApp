@@ -1,0 +1,218 @@
+﻿@page "/comments"
+@using frontend.Responses
+@using frontend.Requests
+@using frontend.Services
+@rendermode InteractiveServer
+@inject CommentsService CommentsService
+
+<h3>Comments</h3>
+
+<!-- ========== FILTER FORM ========== -->
+<div class="card p-3 mb-3 shadow-sm">
+    <h5>Filters</h5>
+
+    <div class="row">
+        <div class="col-md-3">
+            <label>Username</label>
+            <input class="form-control" @bind="filterUsername" />
+        </div>
+
+        <div class="col-md-3">
+            <label>Email</label>
+            <input class="form-control" @bind="filterEmail" />
+        </div>
+
+        <div class="col-md-2">
+            <label>Page</label>
+            <input type="number" class="form-control" @bind="filterPage" min="1" />
+        </div>
+
+        <div class="col-md-2">
+            <label>Page Size</label>
+            <input type="number" class="form-control" @bind="filterPageSize" min="1" />
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+            <input type="checkbox" class="form-check-input me-1" @bind="filterSortAscending" />
+            <label class="form-check-label">Ascending</label>
+        </div>
+    </div>
+
+    <button class="btn btn-primary mt-3" @onclick="ApplyFilters">Apply filters</button>
+</div>
+
+<!-- ========== COMMENT FORM ========== -->
+<div class="mb-3"> <label for="commentText" class="form-label">Your Comment:</label> <textarea id="commentText" class="form-control" @bind="newCommentText"></textarea> </div>
+<div class="mb-3">
+    <label class="form-label">Captcha:</label> <div class="d-flex align-items-center">
+        @if (captcha != null)
+        {
+            <img src="@captcha.CaptchaImage" alt="captcha" />
+            <input class="form-control ms-2" style="width:150px" placeholder="Enter captcha" @bind="captchaCode" />
+        }
+        else
+        {
+            <span>Loading captcha...</span>
+        }
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Attach file (jpg/png/gif OR txt):</label>
+        <InputFile OnChange="HandleFileSelected" />
+    </div>
+</div>
+<button class="btn btn-primary" @onclick="SubmitComment">Submit</button>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="mt-2 alert alert-danger" style="white-space: pre-line">@message</div>
+}
+
+<hr />
+
+<!-- ========== COMMENTS LIST ========== -->
+@if (comments == null)
+{
+    <p>Loading comments...</p>
+}
+else if (comments.Count == 0)
+{
+    <p>No comments yet.</p>
+}
+else
+{
+    @foreach (var c in comments)
+    {
+        <CommentItem Comment="c" Level="0" OnReplySubmitted="LoadComments" />
+    }
+}
+
+@code {
+    private string newCommentText = string.Empty;
+    private string captchaCode = string.Empty;
+    private string message = string.Empty;
+    private GetCaptchaResponse captcha = null!;
+    private List<CommentsResponse> comments = null!;
+    private IBrowserFile? uploadedFile;
+    
+    private string? filterUsername = null;
+    private string? filterEmail = null;
+    private bool filterSortAscending = false;
+    private int filterPage = 1;
+    private int filterPageSize = 50;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadCaptcha();
+            await LoadComments();
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadComments();
+    }
+
+    private async Task LoadCaptcha()
+    {
+        try
+        {
+            captcha = await CommentsService.GetCaptcha();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadedFile = e.File;
+    }
+
+    private async Task RefreshCaptcha()
+    {
+        if (captcha == null || string.IsNullOrEmpty(captcha.CaptchaId))
+        {
+            await LoadCaptcha();
+            return;
+        }
+
+        try
+        {
+            captcha = await CommentsService.RefreshCaptcha(captcha.CaptchaId);
+            captchaCode = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error refreshing captcha: {ex.Message}";
+            StateHasChanged();
+        }
+
+    }
+
+    private async Task LoadComments()
+    {
+        try
+        {
+            comments = await CommentsService.GetAllComments(
+                filterUsername,
+                filterEmail,
+                filterSortAscending,
+                filterPage,
+                filterPageSize);
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            message = $"Error loading comments: {ex.Message}";
+        }
+    }
+
+    private async Task SubmitComment()
+    {
+        message = string.Empty;
+        
+        try
+        {
+            var request = new CreateCommentRequest(
+                ParentId: null,
+                Text: newCommentText,
+                CaptchaCode: captchaCode,
+                CaptchaId: captcha.CaptchaId);
+
+            var newCommentId = await CommentsService.CreateComment(request);
+
+            if (uploadedFile is not null)
+            {
+                await CommentsService.UploadFile(newCommentId, uploadedFile);
+                uploadedFile = null;
+            }
+
+            message = "Comment submitted successfully!";
+            newCommentText = string.Empty;
+            captchaCode = string.Empty;
+
+            await RefreshCaptcha();
+            await LoadComments();
+        }
+        catch (ApplicationException ex)
+        {
+            message = ex.Message;
+            await RefreshCaptcha();
+        }
+        catch (Exception ex)
+        {
+            message = $"Unexpected error: {ex.Message}";
+            await RefreshCaptcha();
+        }
+    }
+}

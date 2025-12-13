@@ -1,0 +1,43 @@
+﻿@page "/login"
+@rendermode InteractiveServer
+@inject NavigationManager Nav
+@inject ApiClient ApiClient
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Authorization
+@using frontend.Auth
+@using frontend.Models
+@using frontend.Responses
+
+<h3>Login</h3>
+
+<div class="p-5">
+    <EditForm Model="loginModel" FormName="Login" OnValidSubmit="HandleLogin">
+        <DataAnnotationsValidator />
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <InputText id="email" class="form-control" @bind-Value="loginModel.Email" />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Login</button>
+    </EditForm>
+</div>
+
+@code {
+    public LoginUserModel loginModel = new LoginUserModel();
+
+    public async Task HandleLogin()
+    {
+        var res = await ApiClient.PostAsync<LoginResponseModel, LoginUserModel>("/api/users/login", loginModel);
+        if (res != null && res.Token != null)
+        {
+            await ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(res);
+            Navigation.NavigateTo("/");
+        }
+    }
+}

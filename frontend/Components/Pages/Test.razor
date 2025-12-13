@@ -1,0 +1,24 @@
+﻿@page "/test"
+@inject ApiClient ApiClient
+@rendermode InteractiveServer
+
+<h3>Test</h3>
+<div>@statusMessage</div>
+<button class="btn btn-primary" @onclick="FetchStatus">Refresh</button>
+
+@code {
+    private string statusMessage = "Click the button to check backend.";
+
+    private async Task FetchStatus()
+    {
+        try
+        {
+            var res = await ApiClient.GetStringAsync("/");
+            statusMessage = res ?? "null response";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+        }
+    }
+}

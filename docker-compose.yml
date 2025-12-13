@@ -1,0 +1,66 @@
+services:
+  
+  comments-backend:
+    image: ${DOCKER_REGISTRY-}backend
+    container_name: comments-backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - 5000:5000
+      - 5001:5001
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000;https://+:5001
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    depends_on:
+      - comments-db
+  
+  comments-frontend:
+    image: ${DOCKER_REGISTRY-}frontend
+    container_name: comments-frontend
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - 8087:8080
+      - 8088:8081
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080;https://+:8081
+    depends_on:
+      - comments-backend
+    volumes:
+      - ./data-keys:/keys
+
+  comments-db:
+    image: postgres:latest
+    container_name: comments-db
+    environment:
+       - POSTGRES_DB=comments_system
+       - POSTGRES_USER=postgres
+       - POSTGRES_PASSWORD=postgres
+    ports:
+       - 5432:5432
+    volumes:
+       - comments_pgdata:/var/lib/postgresql
+
+  comments-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: comments-pgadmin
+    restart: always
+    ports:
+       - 8082:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=test3030@gmail.com
+      - PGADMIN_DEFAULT_PASSWORD=Test123%
+    volumes:
+       - comments_pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  comments_pgdata:
+  comments_pgadmin_data:

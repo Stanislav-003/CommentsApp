@@ -1,0 +1,151 @@
+﻿@using frontend.Models
+@using frontend.Requests
+@using frontend.Responses
+@using frontend.Services
+@inject CommentsService CommentsService
+@inject IJSRuntime JSRuntime
+@inject Microsoft.Extensions.Options.IOptions<frontend.Options.ApiOptions> ApiOptions
+
+<div class="border rounded p-3 mb-3" style="margin-left: @(Level * 30)px; background-color: @(Level % 2 == 0 ? "#fff" : "#f8f9fa");">
+    
+    <div class="fw-bold">@Comment.UserName <span class="text-muted fw-normal">(@Comment.Email)</span></div>
+    <div class="mt-1">@Comment.Text</div>
+    <div class="mt-1 text-muted small">
+        @Comment.CommentCreated.ToString("g")
+    </div>
+
+    @if (!isReplying)
+    {
+        <button class="btn btn-sm btn-outline-primary mt-2" @onclick="StartReply">
+            Reply
+        </button>
+    }
+
+    @if (isReplying)
+    {
+        <div class="mt-3 p-3 border rounded bg-white">
+            <textarea class="form-control mb-2" rows="3" @bind="replyText" placeholder="Your reply..."></textarea>
+
+            @if (replyCaptcha != null)
+            {
+                <div class="d-flex align-items-center mb-2">
+                    <img src="@replyCaptcha.CaptchaImage" alt="captcha" style="height:50px;" />
+                    <input class="form-control ms-2" style="width:120px" @bind="replyCaptchaCode" placeholder="captcha" />
+                </div>
+            }
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary btn-sm" @onclick="SubmitReply">Send</button>
+                <button class="btn btn-secondary btn-sm" @onclick="CancelReply">Cancel</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(replyError))
+            {
+                <div class="text-danger small mt-2">@replyError</div>
+            }
+
+            <div class="mb-2">
+                <label>Attachment:</label>
+                <InputFile OnChange="HandleReplyFileSelected" />
+            </div>
+        </div>
+    }
+
+    @if (Comment.ChildrenComments?.Count > 0)
+    {
+        @foreach (var child in Comment.ChildrenComments)
+        {
+            <CommentItem Comment="child" Level="@(Level + 1)" OnReplySubmitted="OnReplySubmitted" />
+        }
+    }
+
+    @if (Comment.AttachmentUrl != null)
+    {
+        <button class="btn btn-sm btn-outline-secondary mt-2"
+                @onclick="() => OpenFile(Comment.Id)">
+            View attachment
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public CommentsResponse Comment { get; set; } = default!;
+    [Parameter] public int Level { get; set; } = 0;
+    [Parameter] public EventCallback OnReplySubmitted { get; set; }
+
+    private bool isReplying = false;
+    private string replyText = "";
+    private string replyCaptchaCode = "";
+    private GetCaptchaResponse? replyCaptcha;
+    private string replyError = "";
+    private string? fileDataUrl;
+
+    private IBrowserFile? replyFile;
+
+    private async Task StartReply()
+    {
+        isReplying = true;
+        replyText = "";
+        replyCaptchaCode = "";
+        replyError = "";
+        replyCaptcha = await CommentsService.GetCaptcha();
+    }
+
+    private async Task SubmitReply()
+    {
+        if (string.IsNullOrWhiteSpace(replyText))
+        {
+            replyError = "Text is required";
+            return;
+        }
+
+        try
+        {
+            var request = new CreateCommentRequest(
+                ParentId: Comment.Id,
+                Text: replyText,
+                CaptchaId: replyCaptcha!.CaptchaId,
+                CaptchaCode: replyCaptchaCode
+            );
+
+            var newCommentId = await CommentsService.CreateComment(request);
+
+            if (replyFile is not null)
+            {
+                await CommentsService.UploadFile(newCommentId, replyFile);
+                replyFile = null;
+            }
+
+            if (OnReplySubmitted.HasDelegate)
+                await OnReplySubmitted.InvokeAsync();
+
+            CancelReply();
+        }
+        catch (Exception ex)
+        {
+            replyError = ex is ApplicationException ? ex.Message : "Failed to send reply";
+            replyCaptcha = await CommentsService.RefreshCaptcha(replyCaptcha!.CaptchaId);
+            replyCaptchaCode = "";
+        }
+    }
+
+    private void HandleReplyFileSelected(InputFileChangeEventArgs e)
+    {
+        replyFile = e.File;
+    }
+
+    private void CancelReply()
+    {
+        isReplying = false;
+        replyText = "";
+        replyCaptchaCode = "";
+        replyError = "";
+        replyCaptcha = null;
+    }
+
+    private async Task OpenFile(Guid id)
+    {
+        var url = $"{ApiOptions.Value.BaseUrlLocal}/api/comments/file-download?commentId={id}";
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+    }
+}
