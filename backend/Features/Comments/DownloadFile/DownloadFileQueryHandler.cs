@@ -5,7 +5,7 @@ using backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Features.DownloadFile;
+namespace backend.Features.Comments.DownloadFile;
 
 public class DownloadFileQueryHandler : IQueryHandler<DownloadFileQuery, FileResponse>
 {

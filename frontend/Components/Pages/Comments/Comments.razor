@@ -155,7 +155,6 @@ else
             message = $"Error refreshing captcha: {ex.Message}";
             StateHasChanged();
         }
-
     }
 
     private async Task LoadComments()
@@ -193,8 +192,23 @@ else
 
             if (uploadedFile is not null)
             {
-                await CommentsService.UploadFile(newCommentId, uploadedFile);
-                uploadedFile = null;
+                try
+                {
+                    await CommentsService.UploadFile(newCommentId, uploadedFile);
+                    uploadedFile = null;
+                }
+                catch (Exception ex)
+                {
+                    await CommentsService.DeleteComment(
+                        new DeleteCommentRequest(newCommentId));
+
+                    message = ex is ApplicationException
+                        ? $"Failed to upload attachment: {ex.Message}"
+                        : "Failed to upload attachment";
+
+                    await RefreshCaptcha();
+                    return;
+                }
             }
 
             message = "Comment submitted successfully!";

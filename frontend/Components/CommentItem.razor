@@ -91,6 +91,15 @@
         replyCaptcha = await CommentsService.GetCaptcha();
     }
 
+    private void CancelReply()
+    {
+        isReplying = false;
+        replyText = "";
+        replyCaptchaCode = "";
+        replyError = "";
+        replyCaptcha = null;
+    }
+
     private async Task SubmitReply()
     {
         if (string.IsNullOrWhiteSpace(replyText))
@@ -105,15 +114,30 @@
                 ParentId: Comment.Id,
                 Text: replyText,
                 CaptchaId: replyCaptcha!.CaptchaId,
-                CaptchaCode: replyCaptchaCode
-            );
+                CaptchaCode: replyCaptchaCode);
 
             var newCommentId = await CommentsService.CreateComment(request);
 
             if (replyFile is not null)
             {
-                await CommentsService.UploadFile(newCommentId, replyFile);
-                replyFile = null;
+                try
+                {
+                    await CommentsService.UploadFile(newCommentId, replyFile);                                        
+                    replyFile = null;
+                }
+                catch (Exception ex)
+                {
+                    await CommentsService.DeleteComment(
+                        new DeleteCommentRequest(newCommentId));
+                    
+                    replyError = ex is ApplicationException 
+                        ? $"Failed to upload attachment. Comment not created: {ex.Message}" 
+                        : "Failed to send reply";
+
+                    replyCaptcha = await CommentsService.RefreshCaptcha(replyCaptcha!.CaptchaId);
+                    replyCaptchaCode = "";
+                    return;
+                }
             }
 
             if (OnReplySubmitted.HasDelegate)
@@ -132,15 +156,6 @@
     private void HandleReplyFileSelected(InputFileChangeEventArgs e)
     {
         replyFile = e.File;
-    }
-
-    private void CancelReply()
-    {
-        isReplying = false;
-        replyText = "";
-        replyCaptchaCode = "";
-        replyError = "";
-        replyCaptcha = null;
     }
 
     private async Task OpenFile(Guid id)

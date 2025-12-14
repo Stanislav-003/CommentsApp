@@ -43,6 +43,11 @@ public class CommentsService
         return await _apiClient.PostAsync<Guid, CreateCommentRequest>("/api/comments/create", request);
     }
 
+    public async Task<Guid> DeleteComment(DeleteCommentRequest request)
+    {
+        return await _apiClient.PostAsync<Guid, DeleteCommentRequest>("/api/comments/delete", request);
+    }
+
     public async Task<Guid> UploadFile(Guid commentId, IBrowserFile file)
     {
         using var content = new MultipartFormDataContent();

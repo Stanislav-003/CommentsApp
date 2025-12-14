@@ -1,12 +1,8 @@
 ﻿using backend.Abstractions;
 using backend.Abstractions.Messaging;
 using backend.Contracts.Responses;
-using backend.Models;
-using backend.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 
-namespace backend.Features.DownloadFile;
+namespace backend.Features.Comments.DownloadFile;
 
 public class DownloadFile : IEndpoint
 {
@@ -23,10 +19,6 @@ public class DownloadFile : IEndpoint
                 file.stream,
                 file.contentType);
         })
-        //.RequireAuthorization(new AuthorizationPolicyBuilder()
-        //.RequireAuthenticatedUser()
-        //.RequireRole(UsersRoles.USER)
-        //.Build())
         .WithTags("Comments");
     }
 }

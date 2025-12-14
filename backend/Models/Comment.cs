@@ -15,5 +15,5 @@ public class Comment : BaseModel
     public User User { get; set; } = null!;
 
     public Attachment? Attachment { get; set; }
-    [NotMapped] public ICollection<Comment> Children { get; set; } = new List<Comment>();
+    public ICollection<Comment> Children { get; set; } = new List<Comment>();
 }
