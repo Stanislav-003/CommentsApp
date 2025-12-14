@@ -2,4 +2,4 @@
 
 namespace backend.Features.Comments.DeleteComment;
 
-public record DeleteCommentCommand(Guid CommentId) : ICommand<Guid>;
+public record DeleteCommentCommand(Guid CommentId, Guid UserId) : ICommand<Guid>;

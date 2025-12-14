@@ -10,7 +10,6 @@ namespace frontend.Services;
 public class CommentsService
 {
     private readonly ApiClient _apiClient;
-    public Func<Task>? RefreshComments { get; set; }
 
     public CommentsService(ApiClient apiClient)
     {
@@ -76,11 +75,5 @@ public class CommentsService
         result = result.Trim('"');
 
         return Guid.Parse(result);
-    }
-
-    public async Task<FileResponse> DownloadFile(Guid commentId)
-    {
-        var json = await _apiClient.GetStringAsync($"/api/comments/file-download?commentId={commentId}");
-        return JsonConvert.DeserializeObject<FileResponse>(json)!;
     }
 }

@@ -11,27 +11,40 @@ using System.Net.Http.Headers;
 
 namespace frontend;
 
-public class ApiClient(
-    HttpClient httpClient, 
-    ProtectedLocalStorage localStorage, 
-    NavigationManager navigationManager, 
-    AuthenticationStateProvider authStateProvider)
+public class ApiClient
 {
+    private readonly HttpClient _httpClient;
+    private readonly ProtectedLocalStorage _localStorage;
+    private readonly NavigationManager _navigationManager;
+    private readonly AuthenticationStateProvider _authStateProvider;
+
+    public ApiClient(
+        HttpClient httpClient,
+        ProtectedLocalStorage localStorage,
+        NavigationManager navigationManager,
+        AuthenticationStateProvider authStateProvider)
+    {
+        _httpClient = httpClient;
+        _localStorage = localStorage;
+        _navigationManager = navigationManager;
+        _authStateProvider = authStateProvider;
+    }
+
     public async Task SetAuthorizeHeader()
     {
         try
         {
-            var sessionState = (await localStorage.GetAsync<LoginResponseModel>("sessionState")).Value;
+            var sessionState = (await _localStorage.GetAsync<LoginResponseModel>("sessionState")).Value;
             if (sessionState != null && !string.IsNullOrEmpty(sessionState.Token))
             {
                 if (sessionState.TokenExpired < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
                 {
-                    await ((CustomAuthStateProvider)authStateProvider).MarkUserAsLoggedOut();
-                    navigationManager.NavigateTo("/login");
+                    await ((CustomAuthStateProvider)_authStateProvider).MarkUserAsLoggedOut();
+                    _navigationManager.NavigateTo("/login");
                 }
                 else
                 {
-                    httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sessionState.Token);
+                    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sessionState.Token);
                 }
 
                 var requestCulture = new RequestCulture(
@@ -40,12 +53,12 @@ public class ApiClient(
 
                 var cultureCookieValue = CookieRequestCultureProvider.MakeCookieValue(requestCulture);
 
-                httpClient.DefaultRequestHeaders.Add("Cookie", $"{CookieRequestCultureProvider.DefaultCookieName}={cultureCookieValue}");
+                _httpClient.DefaultRequestHeaders.Add("Cookie", $"{CookieRequestCultureProvider.DefaultCookieName}={cultureCookieValue}");
             }
         }
         catch (Exception)
         {
-            navigationManager.NavigateTo("/login");
+            _navigationManager.NavigateTo("/login");
         }
     }
 
@@ -71,7 +84,7 @@ public class ApiClient(
     {
         await SetAuthorizeHeader();
 
-        var result = await httpClient.GetAsync(path);
+        var result = await _httpClient.GetAsync(path);
 
         if (result.IsSuccessStatusCode)
             return JsonConvert.DeserializeObject<T>(await result.Content.ReadAsStringAsync())!;
@@ -83,7 +96,7 @@ public class ApiClient(
     public async Task<string> GetStringAsync(string path)
     {
         await SetAuthorizeHeader();
-        var res = await httpClient.GetAsync(path);
+        var res = await _httpClient.GetAsync(path);
 
         if (res.IsSuccessStatusCode)
             return await res.Content.ReadAsStringAsync();
@@ -96,7 +109,7 @@ public class ApiClient(
     {
         await SetAuthorizeHeader();
 
-        var result = await httpClient.PostAsJsonAsync(path, postModel);
+        var result = await _httpClient.PostAsJsonAsync(path, postModel);
 
         if (result.IsSuccessStatusCode)
         {
@@ -112,7 +125,7 @@ public class ApiClient(
     {
         await SetAuthorizeHeader();
         
-        var result = await httpClient.PutAsJsonAsync(path, postModel);
+        var result = await _httpClient.PutAsJsonAsync(path, postModel);
 
         if (result.IsSuccessStatusCode)
             return JsonConvert.DeserializeObject<T1>(await result.Content.ReadAsStringAsync())!;
@@ -125,7 +138,7 @@ public class ApiClient(
     {
         await SetAuthorizeHeader();
         
-        var result = await httpClient.DeleteAsync(path);
+        var result = await _httpClient.DeleteAsync(path);
 
         if (result.IsSuccessStatusCode)
             return JsonConvert.DeserializeObject<T>(await result.Content.ReadAsStringAsync())!;
@@ -138,7 +151,7 @@ public class ApiClient(
     {
         await SetAuthorizeHeader();
 
-        var response = await httpClient.PostAsync(path, content);
+        var response = await _httpClient.PostAsync(path, content);
 
         if (response.IsSuccessStatusCode)
         {

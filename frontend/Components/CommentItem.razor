@@ -51,6 +51,10 @@
         </div>
     }
 
+    <button class="btn btn-sm btn-outline-danger mt-2 ms-2" @onclick="DeleteComment">
+        Delete
+    </button>
+
     @if (Comment.ChildrenComments?.Count > 0)
     {
         @foreach (var child in Comment.ChildrenComments)
@@ -61,10 +65,16 @@
 
     @if (Comment.AttachmentUrl != null)
     {
-        <button class="btn btn-sm btn-outline-secondary mt-2"
-                @onclick="() => OpenFile(Comment.Id)">
+        <button class="btn btn-sm btn-outline-secondary mt-2" @onclick="() => OpenFile(Comment.Id)">
             View attachment
         </button>
+    }
+
+    @if (!string.IsNullOrEmpty(deleteError))
+    {
+        <div class="text-danger small mt-2">
+            @deleteError
+        </div>
     }
 </div>
 
@@ -78,6 +88,7 @@
     private string replyCaptchaCode = "";
     private GetCaptchaResponse? replyCaptcha;
     private string replyError = "";
+    private string deleteError = "";
     private string? fileDataUrl;
 
     private IBrowserFile? replyFile;
@@ -129,7 +140,7 @@
                 {
                     await CommentsService.DeleteComment(
                         new DeleteCommentRequest(newCommentId));
-                    
+
                     replyError = ex is ApplicationException 
                         ? $"Failed to upload attachment. Comment not created: {ex.Message}" 
                         : "Failed to send reply";
@@ -152,6 +163,26 @@
             replyCaptchaCode = "";
         }
     }
+
+    private async Task DeleteComment()
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "Delete this comment?"))
+            return;
+
+        try
+        {
+            await CommentsService.DeleteComment(
+                new DeleteCommentRequest(Comment.Id));
+
+            if (OnReplySubmitted.HasDelegate)
+                await OnReplySubmitted.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            deleteError = ex is ApplicationException ? ex.Message : "Failed to remove the comment";
+        }
+    }
+
 
     private void HandleReplyFileSelected(InputFileChangeEventArgs e)
     {

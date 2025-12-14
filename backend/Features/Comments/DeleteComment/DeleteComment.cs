@@ -22,7 +22,7 @@ public class DeleteComment : IEndpoint
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
                 throw new ApplicationException("UserIsNotAuthorize");
 
-            var command = new DeleteCommentCommand(dto.CommentId);
+            var command = new DeleteCommentCommand(dto.CommentId, userId);
 
             var result = await handler.Handle(command, ct);
 

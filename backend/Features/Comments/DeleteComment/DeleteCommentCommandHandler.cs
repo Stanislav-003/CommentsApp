@@ -21,6 +21,9 @@ public class DeleteCommentCommandHandler : ICommandHandler<DeleteCommentCommand,
         if (comment is null)
             throw new ApplicationException("CommentNotFound");
 
+        if (comment.UserId != command.UserId)
+            throw new ApplicationException("YouCanDeleteOnlyYourOwnComments");
+
         _dbContext.Comments.Remove(comment);
         await _dbContext.SaveChangesAsync(cancellationToken);
 

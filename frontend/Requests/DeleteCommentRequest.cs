@@ -1,3 +1,4 @@
 ﻿namespace frontend.Requests;
 
-public record DeleteCommentRequest(Guid CommentId);
+public record DeleteCommentRequest(
+    Guid CommentId);

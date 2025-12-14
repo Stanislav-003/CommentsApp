@@ -7,18 +7,25 @@ using System.Security.Claims;
 
 namespace frontend.Auth;
 
-public class CustomAuthStateProvider(ProtectedLocalStorage localStorage) : AuthenticationStateProvider
+public class CustomAuthStateProvider : AuthenticationStateProvider
 {
+    private readonly ProtectedLocalStorage _localStorage;
+
+    public CustomAuthStateProvider(ProtectedLocalStorage localStorage)
+    {
+        _localStorage = localStorage;
+    }
+
     public async override Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         try
         {
-            var sessionModel = (await localStorage.GetAsync<LoginResponseModel>("sessionState")).Value;
+            var sessionModel = (await _localStorage.GetAsync<LoginResponseModel>("sessionState")).Value;
             var identity = sessionModel == null ? new ClaimsIdentity() : GetClaimsIdentity(sessionModel.Token);
             var user = new ClaimsPrincipal(identity);
             return new AuthenticationState(user);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await MarkUserAsLoggedOut();
             var identity = new ClaimsIdentity();
@@ -29,7 +36,7 @@ public class CustomAuthStateProvider(ProtectedLocalStorage localStorage) : Authe
 
     public async Task MarkUserAsAuthenticated(LoginResponseModel model)
     {
-        await localStorage.SetAsync("sessionState", model);
+        await _localStorage.SetAsync("sessionState", model);
         var identity = GetClaimsIdentity(model.Token);
         var user = new ClaimsPrincipal(identity);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
@@ -37,7 +44,7 @@ public class CustomAuthStateProvider(ProtectedLocalStorage localStorage) : Authe
 
     public async Task MarkUserAsAuthenticated(RegisterResponseModel model)
     {
-        await localStorage.SetAsync("sessionState", model);
+        await _localStorage.SetAsync("sessionState", model);
         var identity = GetClaimsIdentity(model.Token);
         var user = new ClaimsPrincipal(identity);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
@@ -53,7 +60,7 @@ public class CustomAuthStateProvider(ProtectedLocalStorage localStorage) : Authe
 
     public async Task MarkUserAsLoggedOut()
     {
-        await localStorage.DeleteAsync("sessionState");
+        await _localStorage.DeleteAsync("sessionState");
         var identity = new ClaimsIdentity();
         var user = new ClaimsPrincipal(identity);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
