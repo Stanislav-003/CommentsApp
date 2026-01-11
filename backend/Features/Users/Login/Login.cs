@@ -17,9 +17,7 @@ public class Login : IEndpoint
             var query = new LoginUserQuery(
                 dto.Email,
                 dto.Password);
-
             var result = await handler.Handle(query, ct);
-
             return result;
         })
         .WithTags("Users");
